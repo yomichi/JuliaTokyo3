@@ -1,0 +1,10 @@
+#!/usr/bin/env perl
+$latex  = 'platex -synctex=1 -shell-escape';
+$latex_silent = 'platex -synctex=1 -interaction=batchmode';
+$bibtex = 'pbibtex';
+$dvipdf = 'dvipdfmx -o %D %S';
+$makeindex  = 'mendex -o %D %S';
+$max_repeat = 5;
+$pdf_mode = 3; 
+
+$pdf_update_command = 'open -ga Preview %S';

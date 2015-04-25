@@ -1,0 +1,84 @@
+\documentclass[dvipdfmx]{beamer}
+\usepackage{mytheme}
+\setbeamercovered{transparent=0}
+
+\input{header_listing.tex}
+\newcommand{\textblue}[1]{\textcolor{blue}{#1}}
+
+\title{まっくろわーるど}
+\subtitle{じゅりあらんぐッ！}
+\author{yomichi}
+\date{JuliaTokyo \#3 2015/04/25}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+  スライドとサンプルコード \\ 
+  https://github.com/yomichi/JuliaTokyo3
+\end{frame}
+
+\begin{frame}[containsverbatim]
+  \frametitle{自己紹介}
+  \begin{columns}
+    \begin{column}{.8\linewidth}
+  \begin{itemize}
+    \item HN : 夜道, yomichi
+    \item twitter : \verb|@yomichi_137|
+    \item ぽすどくにねんせい
+      \begin{itemize}
+        \item 統計物理学・計算物理学
+        \begin{itemize}
+          \item 主にモンテカルロ法とか
+          \item 言語はC++, Python, \textblue{Julia}
+        \end{itemize}
+      \end{itemize}
+    \item イベント（勉強会）実況勢
+      \begin{itemize}
+        \item 最近だと全ゲ連（同人ゲーム開発）とか、PyConJP (Python) とか、\textblue{JuliaTokyo}とか
+      \end{itemize}
+    \item Julia nightly build 勢
+    \item Julia の開発環境は REPL と Vim
+    \item コミケでJulia 本出したりしてます
+      \begin{itemize}
+        \item blog とか締め切りがないので書けません＞＜
+        \item 抽選受かっていたら次の夏にも出します
+          \begin{itemize}
+            \item 多分今回の話をもう少し詳しく書きます
+          \end{itemize}
+      \end{itemize}
+  \end{itemize}
+\end{column}
+\begin{column}{.3\linewidth}
+  \includegraphics[width=\linewidth]{sakuremi.jpg}
+
+  (thanks \verb|@am_11|)
+\end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{今日のお話}
+  \tableofcontents
+  \begin{itemize}
+    \item メタプログラミングとかマクロ展開とかのお話です
+      \begin{itemize}
+        \item (Julia の中では)難しそう or 難しいためか余り触れられてこない話
+        \item 確実に30分では終わらないので適当に飛ばします
+          \begin{itemize}
+            \item 一応スライドだけでも読めるつもりで作ったので、興味ある方はあとでゆっくりとどうぞ
+            \item いつものことですが公式ドキュメントが一番詳しくてわかりやすく、ほぼ常に最新なので、英語が苦じゃない人はそちらがおすすめ
+          \end{itemize}
+      \end{itemize}
+    \item 未確認で進行形ネタを仕込もうかと思ったけれどそんな余裕がありませんでした
+      \begin{itemize}
+        \item なのでタイトルは出オチです
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+\input{ast}
+\input{macro}
+\input{meta}
+\input{conclusion}
+
+\end{document}

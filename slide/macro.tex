@@ -1,0 +1,298 @@
+\section{マクロシステム}
+\begin{frame}
+  \frametitle{Outline}
+  \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{マクロ}
+\begin{itemize}
+  \item マクロは\verb|macro| キーワードで定義して、\verb|@name| という形で呼び出す
+  \item マクロがやること
+    \begin{enumerate}
+      \item 引数をそれぞれ\verb|:()| でquote して
+      \item 普通の関数と同様に何か仕事して
+      \item 返ってきた値を\verb|eval| する
+    \end{enumerate}
+  \item AST を受け取ってAST を返す関数の場合、いちいち\verb|quote| や\verb|eval| をする必要があった
+    \begin{itemize}
+      \item \verb|eval( foo( :( x+1 ) ) ) |
+    \end{itemize}
+  \item マクロでは \verb|@foo(x+1)| と書ける
+    \begin{itemize}
+      \item \verb|@foo x+1| のようにも書ける
+    \end{itemize}
+  \item マクロは関数と違って健全であるという特徴もある
+    \begin{itemize}
+      \item 説明は次頁
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{変数捕捉と健全な(hygienic)マクロ}
+\begin{itemize}
+  \item マクロはASTを変換（マクロ展開）して、新しいASTを呼び出し元に貼り付ける
+    \item 展開されたASTに含まれる名前が、呼び出し元の文脈にあるものと衝突する事がある（＝変数捕捉）
+    \begin{enumerate}
+      \item 必要な名前が呼び出し元で別の値に束縛されている事がある
+      \item 呼び出し元の変数を再束縛してしまう
+    \end{enumerate}
+  \item 名前の付け方に細工をすることで回避する
+    \begin{enumerate}
+    \item マクロが定義されているモジュール名を使って名前を修飾する
+    \item 変数に値を代入するときは、重複しない（今まで作られていなくて、これからも作られない）名前を生成して変数名とする
+      \begin{itemize}
+        \item \verb|Base.gensym| で生成可能
+      \end{itemize}
+    \end{enumerate}
+    \item \textcolor{blue}{Julia のマクロ展開では全て自動でやってくれる（健全なマクロ）}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+  \frametitle{変数捕捉と健全なマクロ}
+\begin{itemize}
+  \item \textblue{\texttt{Base.macroexpand}} を使うとマクロ展開した結果を得ることができる
+    \begin{itemize}
+      \item 関数なのでquote が必要
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+module JT3 # 以下全てのマクロはこのモジュール内にある
+macro setx_A()
+  :( x = sin(1.0) )
+end
+end
+\end{lstlisting}
+
+\begin{lstlisting}
+julia> macroexpand( :( JT3.@setx_A ) )
+:(#30#x = JT3.sin(1.0))
+\end{lstlisting}
+
+\begin{enumerate}
+  \item \verb|sin| を\verb|JT3| で修飾することで、呼び出し元が\verb|sin| を隠蔽しているかどうかを気にしなくてよくなる
+    \begin{itemize}
+      \item \verb|JT3.sin| は（名前の隠蔽をしていなければ）\verb|Base.sin| になる
+    \end{itemize}
+  \item \verb|#30#x| という名前を作ることで、呼び出し元に\verb|x| があるかどうかを気にしなくてよくなる
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{変数捕捉と健全なマクロ}
+\begin{lstlisting}
+macro setx_A()
+   :( x = sin(1.0) )
+end
+\end{lstlisting}
+\begin{itemize}
+  \item Julia が自動的に\verb|x| を保護してくれるために、残念ながらこのマクロを使っても呼び出し元の\verb|x| に変化はおきない
+\end{itemize}
+\begin{lstlisting}
+julia> x
+ERROR: UndefVarError: x not defined
+
+julia> JT3.@setx_A
+0.8414709848078965
+
+julia> x
+ERROR: UndefVarError: x not defined
+\end{lstlisting}
+\begin{itemize}
+  \item 呼び出し元に影響をあたえるためには、名前の保護を無効化することで意図的に変数捕捉を起こす必要がある (\textcolor{blue}{\texttt{Base.esc}})
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{意図的な変数捕捉}
+\begin{itemize}
+  \item \verb|Symbol| や\verb|Expr| に\verb|Base.esc| を作用させると、それらに含まれる名前は保護されなくなる
+    \begin{itemize}
+      \item \verb|@setx_B| のようにまとめてエスケープしてもよいし
+      \item \verb|@setx_C| のように個別にエスケープしてもよい
+        \begin{itemize}
+          \item \verb|Base.esc| が引数にとれるのは\verb|Symbol| か\verb|Expr| だけなので\verb|:x| とquote が必要
+            \item \verb|esc(:x)| の結果を埋め込むために\verb|$()| が必要
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setx_B()
+  esc( :( x = sin(1.0)) )
+end
+macro setx_C()
+  :( $(esc(:x)) = sin(1.0) )
+end
+
+\end{lstlisting}
+\begin{lstlisting}
+julia> macroexpand(:( JT3.@setx_B ) )
+:(x = sin(1.0))
+
+julia> macroexpand(:( JT3.@setx_C ) )
+:(x = JT3.sin(1.0))
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{意図的な変数捕捉}
+\begin{itemize}
+  \item このマクロを使うと\verb|x| の値を変えることができる
+\end{itemize}
+\begin{lstlisting}
+julia> x
+ERROR: UndefVarError: x not defined
+
+julia> JT3.@setx_B
+0.8414709848078965
+
+julia> x
+0.8414709848078965
+
+julia> x = 0;
+
+julia> JT3.@setx_C
+0.8414709848078965
+
+julia> x
+0.8414709848078965
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{潔癖症レベルで健全}
+\begin{itemize}
+  \item 引数に含まれている変数名も全て保護される
+    \begin{itemize}
+      \item つまり呼び出し元とは関係ないものとなる
+      \item まず確実に\verb|esc| が必要
+        \begin{itemize}
+          \item \verb|Symbol| のまま残したいときはエスケープしなくても良い
+        \end{itemize}
+      \item ぶっちゃけ迷惑
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setf_A(ex, val)
+  :( $ex = $val )
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia> macroexpand(:(JT3.@setf_A x y) )
+:(#8#x = JT3.y)
+
+julia> x, y = 0, 42;
+
+julia> JT3.@setf_A x y
+ERROR: UndefVarError: y not defined
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{回避例}
+\begin{itemize}
+  \item 基本的にやることはさっきと同じ
+  \item 今回の\verb|@setf_C| のように、あらかじめ外でエスケープしてからquote 文に注入することもできる
+    \begin{itemize}
+      \item 自分の好みで、見やすいものを使ってください
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setf_B(ex, val)
+  esc(:($ex = $val))
+end
+
+macro setf_C(ex, val)
+  esc_ex = esc(ex)
+  esc_val = esc(val)
+  :($esc_ex = $esc_val)
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia> macroexpand(:( JT3.@setf_B x y))
+:(x = y)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{近未来}
+\begin{itemize}
+  \item この「健全すぎる」という件はJulia-0.4 のリリースまでには修正される予定
+    \begin{itemize}
+      \item マクロに渡された式中の名前が保護されなくなる
+        \begin{itemize}
+          \item （あまりないと思うけれど）保護したくなったら自分で\verb|gensym| やモジュール名修飾すること
+        \end{itemize}
+      \item \verb|Base.@hygienic| に関数定義を食わせるとその関数でも名前保護が行われる
+      \item Issue \#6910, \#10940
+      \begin{itemize}
+        \item 2015-04-25 現在ではmerge されていないので注意
+        \item \verb|moon/hygienic-macros| branch をビルドすれば試せる
+      \end{itemize}
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setf_A(ex, val)
+  :( $ex = $val )
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia-future> macroexpand(:(JT3.@setf_A x y ))
+:(x = y)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{近未来}
+\begin{itemize}
+  \item もちろん直に書いた名前は今までどおり保護されることとなる
+    \begin{itemize}
+      \item \verb|Symbol| は\verb|$:x| とすることでお手軽にエスケープできる
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setx_A()
+  :( x = sin(1.0) )
+end
+macro setx_D()
+  :( $:x = sin(1.0) )
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia-future> macroexpand(:(JT3.@setx_A))
+:(#3#x = JT3.sin(1.0))
+julia-future> macroexpand(:(JT3.@setx_D))
+:(x = JT3.sin(1.0))
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{近未来}
+\begin{itemize}
+  \item 従来の\verb|Base.esc| も当然使えるけれど、バグっている？
+    \begin{itemize}
+      \item 改めて議論の流れを確認してから報告します
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+macro setx_B()
+  esc( :( x = sin(1.0)) )
+end
+
+macro setx_C()
+  :( $(esc(:x)) = sin(1.0) )
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia-future> macroexpand(:(JT3.@setx_B))
+:(#4#x = JT3.sin(1.0))
+
+julia-future> macroexpand(:(JT3.@setx_B))
+:(x = JT3.sin(1.0))
+\end{lstlisting}
+\end{frame}
+

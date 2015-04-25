@@ -1,0 +1,240 @@
+\section{メタプログラミング -- どう使うか}
+\begin{frame}
+  \frametitle{Outline}
+  \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{マクロの効用 -- 評価タイミングの制御}
+\begin{itemize}
+  \item マクロ呼出しでは式を式のまま、値に評価せずに渡すので、評価タイミングを自分で制御できる
+  \item 評価しなかったり、複数回評価したりも可能
+    \begin{itemize}
+      \item 与えた式の実行にかかる時間を計測する\verb|@time| では、現在時刻を調べる操作を前後にやる必要がある
+      \item \verb|Expr| や無名関数にくるむことで関数でもほぼ同じことができるが、呼び出し側がいちいちそれをやるのは面倒臭すぎる
+    \end{itemize}
+\begin{lstlisting}
+macro time(ex)
+  quote
+    t0 = time_ns()
+    val = $(esc(ex))
+    t1 = time_ns()
+    println(1.e-9(t1-t0), " sec")
+    val
+  end
+end
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{マクロの効用 -- コンパイル時計算}
+\begin{itemize}
+    \item マクロ展開は式のパース及び関数のJITコンパイル時に行われて、構文そのものが書き換わる
+    \item そのため、定数などをコンパイル時に計算をおこなうことで実行時間を短くすることができうる
+\end{itemize}
+\begin{lstlisting}
+function isnotcomment(line)
+  !ismatch(r"^\s*(#|$)", line)
+end
+function isnotcomment_nomacro(line)
+  !ismatch(Regex("^\\s*(#|\$)"), line)
+end
+\end{lstlisting}
+\begin{itemize}
+  \item 文字列リテラルの直前に文字を置くと、自動的にマクロ呼出しになる
+    \begin{itemize}
+      \item \verb|@r_str| は正規表現を作るマクロ
+    \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+julia> foo"hoge"
+ERROR: UndefVarError: @foo_str not defined
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{マクロの効用 -- コンパイル時計算}
+\begin{itemize}
+  \item マクロを使わないと毎回正規表現を作ることになる
+    \begin{itemize}
+      \item \verb|code_llvm| 関数を使ってLLVM コードにコンパイルすると、非マクロ版の方が明らかに中身が多いことが分かる
+    \end{itemize}
+  \item マクロ版
+\end{itemize}
+\begin{lstlisting}
+julia> code_llvm(JT3.isnotcomment, (ASCIIString,))
+
+define i1 @julia_isnotcomment_44329(%jl_value_t*) {
+top:
+  %1 = call i1 @julia_ismatch4396(%jl_value_t* inttoptr (i64 4591287408 to %jl_value_t*), %jl_value_t* %0, i64 0)
+  %2 = xor i1 %1, true
+  ret i1 %2
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[shrink, containsverbatim]
+\frametitle{マクロの効用 -- コンパイル時計算}
+\begin{itemize}
+  \item 非マクロ版
+\end{itemize}
+\begin{lstlisting}
+julia> code_llvm(JT3.isnotcomment_nomacro, (ASCIIString,))
+
+define i1 @julia_isnotcomment_nomacro_44330(%jl_value_t*) {
+top:
+  %1 = alloca [3 x %jl_value_t*], align 8
+  %.sub = getelementptr inbounds [3 x %jl_value_t*]* %1, i64 0, i64 0
+  %2 = getelementptr [3 x %jl_value_t*]* %1, i64 0, i64 2
+  store %jl_value_t* inttoptr (i64 2 to %jl_value_t*), %jl_value_t** %.sub, align 8
+  %3 = load %jl_value_t*** @jl_pgcstack, align 8
+  %4 = getelementptr [3 x %jl_value_t*]* %1, i64 0, i64 1
+  %.c = bitcast %jl_value_t** %3 to %jl_value_t*
+  store %jl_value_t* %.c, %jl_value_t** %4, align 8
+  store %jl_value_t** %.sub, %jl_value_t*** @jl_pgcstack, align 8
+  store %jl_value_t* null, %jl_value_t** %2, align 8
+  %5 = load %jl_value_t** inttoptr (i64 4580071440 to %jl_value_t**), align 16
+  %6 = load %jl_value_t** inttoptr (i64 4588059808 to %jl_value_t**), align 32
+  %7 = bitcast %jl_value_t* %6 to i32*
+  %8 = load i32* %7, align 8
+  %9 = call %jl_value_t* @julia_call1392(%jl_value_t* %5, %jl_value_t* inttoptr (i64 4600855376 to %jl_value_t*), i32 %8)
+  store %jl_value_t* %9, %jl_value_t** %2, align 8
+  %10 = call i1 @julia_ismatch4396(%jl_value_t* %9, %jl_value_t* %0, i64 0)
+  %11 = xor i1 %10, true
+  %12 = load %jl_value_t** %4, align 8
+  %13 = getelementptr inbounds %jl_value_t* %12, i64 0, i32 0
+  store %jl_value_t** %13, %jl_value_t*** @jl_pgcstack, align 8
+  ret i1 %11
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{Generated function}
+\begin{itemize}
+  \item 4/21 に新しく\verb|Base.@generated| が導入された
+  \item これまでに渡されたことのない型の組み合わせの時は、関数本体を実行する
+    \begin{itemize}
+      \item その時、引数の値は参照できず、自動的に型が得られる
+    \end{itemize}
+  \item 同じ型の組み合わせを再度投げると、本体は実行されず返り値のみが得られる
+    \begin{itemize}
+      \item AST を返すようにすることで、マクロのように使うことができる
+      \item マクロと違い型による多重ディスパッチが働くことが利点
+      \item 関数本体の処理内容によっては、2回目以降も実行されることがあるらしい
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim, shrink]
+\frametitle{Generated function}
+\begin{itemize}
+  \item 百聞は一見にしかず
+  \item \verb|Int|を2回目以降渡した時には \verb|println(x)| が実行されないこと、
+  \item \verb|println(x)| で値ではなく型が出力されていることに注目
+\end{itemize}
+\begin{lstlisting}
+@generated function gen_fn(x)
+  println(x)
+  :(x*x)
+end
+\end{lstlisting}
+\begin{lstlisting}
+julia> JT3.gen_fn(3)
+Int64
+9
+
+julia> JT3.gen_fn(3)
+9
+
+julia> JT3.gen_fn(5)
+25
+
+julia> JT3.gen_fn(3.14)
+Float64
+9.8596
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim, shrink]
+\frametitle{Generated function}
+\begin{itemize}
+  \item 引数の型別にコンパイル時計算が可能
+  \item 値についても、パラメタライズ型の型パラメータに整数などを渡せて、違う整数では違う型になることを利用できる
+\end{itemize}
+\begin{lstlisting}
+type IntTag{N} end
+function fib_impl(N::Integer)
+  N < 2 && return 1
+  return fib_impl(N-1) + fib_impl(N-2)
+end
+@generated function fib{N}(::IntTag{N})
+  ret = fib_impl(N)
+  :($ret)
+end
+fib(N::Integer) = fib(IntTag{N}())
+\end{lstlisting}
+\begin{lstlisting}
+julia> @time JT3.fib(45)
+elapsed time: 10.953970307 seconds (59 kB allocated)
+1836311903
+
+julia> @time JT3.fib(45)
+elapsed time: 1.2492e-5 seconds (192 bytes allocated)
+1836311903
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{メタプログラミングのやり方}
+\begin{itemize}
+  \item 最終的に評価したい式（出力）と、使える名前や式（入力）を、具体的に書いて並べてみる
+  \item 入力をどう組み立て・変形すれば出力の式になるのかを考える
+  \item 今回説明した、変数補間や名前保護のルールが身につけば、ある程度のマクロやメタプログラミングは少しの慣れで書けるはず
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{関数定義}
+\begin{itemize}
+  \item 関数定義もAST で表せるので、関数の自動生成なんてこともできる
+  \item 形がほとんど同じで、部品（使う関数など）の名前だけが違う関数群などでは是非
+\begin{lstlisting}
+type MyFloat
+  val :: Float64
+end
+for fn in (:sin, :cos, :tan)
+  eval(Expr(:import, :Base, fn))
+  @eval ($fn)(mf::MyFloat) = ($fn)(mf.val)
+end
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+\frametitle{関数定義をジャックするマクロ}
+\begin{itemize}
+  \item 関数定義を自動的に別の関数定義に置き換えるマクロを作ることもできる
+  \begin{itemize}
+    \item 自動ロギング、メモ化、末尾再帰最適化などなど
+  \end{itemize}
+  \item 一度に展開形にするのはまず無理
+    \begin{itemize}
+      \item 受け取った\verb|Expr| 型のオブジェクトから関数名や引数名などを抽出する必要がある
+      \item いっそオブジェクトの追記・書き換えで完成させるのもアリ
+      \item 渡された関数定義を、名前を変えて実行してしまい、新しく作る関数の中から呼ぶのも有効
+    \end{itemize}
+  \item この場合でも「最後にはこう展開されて欲しい」という対応関係を最初に考えるのが大事
+    \begin{itemize}
+      \item メモ化や末尾再帰最適化など、そもそもどうやって実現するのかを考えるところから始まる
+      \item 最終形を目指してひたすら\verb|macroexpand| をしたり\verb|@show| で途中経過を表示するなどして、試行錯誤を繰り返す
+    \end{itemize}
+  \item 成果物が役立つかは別としても、かなり勉強・練習になる
+    \begin{itemize}
+      \item サンプルとしてメモ化マクロを作ってみたので興味があれば
+      \item ちなみに\verb|Memoize.jl| なんていうパッケージも既に存在する
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
