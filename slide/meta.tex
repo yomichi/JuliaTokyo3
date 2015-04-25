@@ -114,6 +114,9 @@ top:
 \frametitle{Generated function}
 \begin{itemize}
   \item 4/21 に新しく\verb|Base.@generated| が導入された
+    \begin{itemize}
+      \item ドキュメントも同時に追加された
+    \end{itemize}
   \item これまでに渡されたことのない型の組み合わせの時は、関数本体を実行する
     \begin{itemize}
       \item その時、引数の値は参照できず、自動的に型が得られる
@@ -124,6 +127,8 @@ top:
       \item マクロと違い型による多重ディスパッチが働くことが利点
       \item 関数本体の処理内容によっては、2回目以降も実行されることがあるらしい
     \end{itemize}
+  \item 引数の型別にコンパイル時計算が可能
+  \item パラメタライズ型の型パラメータに整数などを渡せて、違う整数では違う型になることを利用すると、数値ごとにコンパイル時計算しておくことができる
 \end{itemize}
 \end{frame}
 
@@ -158,31 +163,60 @@ Float64
 \end{frame}
 
 \begin{frame}[containsverbatim, shrink]
-\frametitle{Generated function}
+\frametitle{Generated function -- コンパイル時フィボナッチ}
 \begin{itemize}
-  \item 引数の型別にコンパイル時計算が可能
-  \item 値についても、パラメタライズ型の型パラメータに整数などを渡せて、違う整数では違う型になることを利用できる
+  \item generated function では再計算しないので、再帰でやっても十分速い
 \end{itemize}
 \begin{lstlisting}
 type IntTag{N} end
-function fib_impl(N::Integer)
-  N < 2 && return 1
-  return fib_impl(N-1) + fib_impl(N-2)
-end
+
 @generated function fib{N}(::IntTag{N})
-  ret = fib_impl(N)
+  N < 3 && return 1
+  ret = fib(N-1) + fib(N-2)
   :($ret)
 end
+
 fib(N::Integer) = fib(IntTag{N}())
 \end{lstlisting}
 \begin{lstlisting}
-julia> @time JT3.fib(45)
-elapsed time: 10.953970307 seconds (59 kB allocated)
-1836311903
+julia> @time JT3.fib(500)
+elapsed time: 0.714843811 seconds (13 MB allocated)
+4859788740867454402
+# 実はオーバーフローしている（ぉ
 
-julia> @time JT3.fib(45)
-elapsed time: 1.2492e-5 seconds (192 bytes allocated)
-1836311903
+julia> @time JT3.fib(500)
+elapsed time: 1.2101e-5 seconds (192 bytes allocated)
+4859788740867454402
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[containsverbatim, shrink]
+\frametitle{Generated function -- コンパイル時フィボナッチ}
+\begin{itemize}
+  \item 再計算していないことは \verb|@show ret| とかやるとよくわかる
+  \item あくまでデモ用なので、フィボナッチ数列を作りたい場合は配列を用意してループを回したほうがよい
+  \begin{itemize}
+    \item \verb|BigNum| などが使えないのでオーバーフローなどに注意
+    \item 再帰が深くなるとスタックオーバーフローする
+  \end{itemize}
+\end{itemize}
+\begin{lstlisting}
+@generated function fib{N}(::IntTag{N})
+  N < 3 && return 1
+  ret = fib(N-1) + fib(N-2)
+  @show N, ret
+  :($ret)
+\end{lstlisting}
+\begin{lstlisting}
+julia> JT3.fib(100);
+(N,ret) = (3,2)
+(N,ret) = (4,3)
+(N,ret) = (5,5)
+(N,ret) = (6,8)
+# 中略
+(N,ret) = (98,6174643828739884737)
+(N,ret) = (99,-2437933049959450366) # Oops
+(N,ret) = (100,3736710778780434371)
 \end{lstlisting}
 \end{frame}
 
@@ -192,6 +226,10 @@ elapsed time: 1.2492e-5 seconds (192 bytes allocated)
   \item 最終的に評価したい式（出力）と、使える名前や式（入力）を、具体的に書いて並べてみる
   \item 入力をどう組み立て・変形すれば出力の式になるのかを考える
   \item 今回説明した、変数補間や名前保護のルールが身につけば、ある程度のマクロやメタプログラミングは少しの慣れで書けるはず
+    \begin{itemize}
+      \item \verb|macroexpand| を使って確認するのが良い
+      \item REPL など、\verb|Main| モジュールでテストをすると、自動でなされるモジュール名修飾の結果がわかりづらくなるので、できるだけ別のモジュールの中で書いたほうが良い
+    \end{itemize}
 \end{itemize}
 \end{frame}
 
@@ -228,7 +266,7 @@ end
   \item この場合でも「最後にはこう展開されて欲しい」という対応関係を最初に考えるのが大事
     \begin{itemize}
       \item メモ化や末尾再帰最適化など、そもそもどうやって実現するのかを考えるところから始まる
-      \item 最終形を目指してひたすら\verb|macroexpand| をしたり\verb|@show| で途中経過を表示するなどして、試行錯誤を繰り返す
+      \item 基本的には\verb|macroexpand| で結果を確認したり、\verb|dump, @show| で中身を見ながら試行錯誤 
     \end{itemize}
   \item 成果物が役立つかは別としても、かなり勉強・練習になる
     \begin{itemize}

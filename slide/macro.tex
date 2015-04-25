@@ -102,14 +102,14 @@ julia> x
 ERROR: UndefVarError: x not defined
 \end{lstlisting}
 \begin{itemize}
-  \item 呼び出し元に影響をあたえるためには、名前の保護を無効化することで意図的に変数捕捉を起こす必要がある (\textcolor{blue}{\texttt{Base.esc}})
+  \item 呼び出し元に影響をあたえるためには、名前の保護を無効化することで意図的に変数捕捉を起こす必要がある (\textblue{\texttt{Base.esc}})
 \end{itemize}
 \end{frame}
 
 \begin{frame}[containsverbatim]
 \frametitle{意図的な変数捕捉}
 \begin{itemize}
-  \item \verb|Symbol| や\verb|Expr| に\verb|Base.esc| を作用させると、それらに含まれる名前は保護されなくなる
+  \item \verb|Symbol| や\verb|Expr| に\textblue{\texttt{Base.esc}} を作用させると、それらに含まれる名前は保護されなくなる
     \begin{itemize}
       \item \verb|@setx_B| のようにまとめてエスケープしてもよいし
       \item \verb|@setx_C| のように個別にエスケープしてもよい
@@ -166,10 +166,10 @@ julia> x
 \begin{frame}[containsverbatim]
 \frametitle{潔癖症レベルで健全}
 \begin{itemize}
-  \item 引数に含まれている変数名も全て保護される
+  \item \textblue{マクロ引数に含まれている変数名}も全て保護される
     \begin{itemize}
       \item つまり呼び出し元とは関係ないものとなる
-      \item まず確実に\verb|esc| が必要
+      \item \textblue{まず確実に\texttt{esc} が必要}
         \begin{itemize}
           \item \verb|Symbol| のまま残したいときはエスケープしなくても良い
         \end{itemize}

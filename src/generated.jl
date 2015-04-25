@@ -8,15 +8,10 @@ if VERSION >= v"0.4.0-dev+4464"
     :(x*x)
   end
 
-  # recursive version for calculating Fibonacci number
-  #
-  # It's a just demonstration of @generated, NEVER use!
-  function fib_impl(N::Integer)
-    N < 2 && return 1
-    return fib_impl(N-1) + fib_impl(N-2)
-  end
   @generated function fib{N}(::IntTag{N})
-    ret = fib_impl(N)
+    N < 3 && return 1
+    ret = fib(N-1) + fib(N-2)
+    @show N, ret
     :($ret)
   end
   fib(N::Integer) = fib(IntTag{N}())

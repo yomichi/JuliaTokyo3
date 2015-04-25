@@ -1,16 +1,26 @@
 \begin{frame}[containsverbatim]
-\frametitle{参考資料}
+\frametitle{まとめ}
 \begin{itemize}
-  \item \href{http://docs.julialang.org/en/latest/manual/metaprogramming/}
-    {Julia 公式 Document}
+  \item Julia の構文をJulia の中からいじる方法（メタプログラミング）を見てきた
     \begin{itemize}
-      \item 英語が読めるならこれを読みながら手を動かせばよい
+      \item コードを自動生成することで全体のコード量や実装時間を減らせる
+      \item マクロや\verb|@generated| でコンパイル時計算をしたり\verb|Memoize.jl| などで関数を自動メモ化したりすることで実行性能をあげられる（かもしれない）
+      \item 自分で書く場合、どういう結果が出て欲しいかをまず考える
+      \item \verb|macroexpand, dump, @show| あたりを駆使して試行錯誤
     \end{itemize}
-  \item \href{http://www.asahi-net.or.jp/~kc7k-nd/onlispjhtml/}
-    {On Lisp}, (著: Paul Graham, 和訳:野田開)
-    \begin{itemize}
-      \item Lisp 系の言語を学ぶとJulia が多大な影響を受けていることがよくわかる
-      \item マクロだけじゃなくてクロージャなどの理解にも役立つ
-    \end{itemize}
+  \item 参考資料
+  \begin{itemize}
+    \item \href{http://docs.julialang.org/en/latest/manual/metaprogramming/}
+      {Julia 公式 Document}
+      \begin{itemize}
+        \item 英語が読めるならこれを読みながら手を動かせばよい
+      \end{itemize}
+    \item \href{http://www.asahi-net.or.jp/~kc7k-nd/onlispjhtml/}
+      {On Lisp}, (著: Paul Graham, 和訳:野田開)
+      \begin{itemize}
+        \item Lisp 系の言語を学ぶとJulia が多大な影響を受けていることがよくわかる
+        \item マクロだけじゃなくてクロージャなどの理解にも役立つ
+      \end{itemize}
+  \end{itemize}
 \end{itemize}
 \end{frame}
